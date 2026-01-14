@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EchoVerse Visualizer — Sacred Certainty</title>
+  <style>
+    :root{
+      --bg0:#07090c;
+      --bg1:#0b1016;
+      --fg:#e7eef7;
+      --muted:#9aa7b6;
+      --edge:rgba(255,255,255,.10);
+      --edge2:rgba(255,255,255,.06);
+      --glow:rgba(255,255,255,.12);
+      --warn:rgba(255,160,64,.85);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      color:var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(255,255,255,.06), transparent 55%),
+        radial-gradient(900px 500px at 85% 30%, rgba(255,160,64,.07), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+    }
+    .wrap{
+      position:relative;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      height:100vh;
+      padding:18px;
+      gap:12px;
+    }
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      padding:14px 14px 10px;
+      border:1px solid var(--edge);
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+    }
+    .title h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+    }
+    .title p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+      max-width:56ch;
+    }
+    .meta{
+      text-align:right;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+      white-space:nowrap;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border:1px solid var(--edge2);
+      border-radius:999px;
+      background:rgba(0,0,0,.18);
+      color:var(--fg);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .pill i{
+      width:8px;height:8px;border-radius:50%;
+      background:var(--warn);
+      box-shadow: 0 0 16px var(--warn);
+      display:inline-block;
+    }
+    .canvasCard{
+      position:relative;
+      border:1px solid var(--edge);
+      border-radius:18px;
+      background:rgba(255,255,255,.02);
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      overflow:hidden;
+    }
+    canvas{display:block; width:100%; height:100%;}
+    .hud{
+      position:absolute;
+      inset:auto 12px 12px 12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      pointer-events:none;
+      color:rgba(231,238,247,.85);
+      font-size:12px;
+    }
+    .hud .left, .hud .right{
+      display:flex; gap:10px; align-items:center;
+      padding:8px 10px;
+      border-radius:14px;
+      background:rgba(0,0,0,.28);
+      border:1px solid rgba(255,255,255,.07);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+      backdrop-filter: blur(8px);
+    }
+    .bottom{
+      border:1px solid var(--edge);
+      border-radius:16px;
+      padding:12px 12px 10px;
+      background:rgba(255,255,255,.03);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+    }
+    audio{ width:100%; }
+    .note{
+      margin-top:8px;
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.25);
+      color:rgba(231,238,247,.9);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="title">
+        <h1>EchoVerse Visualizer</h1>
+        <p>
+          “Sacred Certainty” — industrial swamp sermon.<br/>
+          Belief becomes a throne; people become furniture.
+        </p>
+      </div>
+      <div class="meta">
+        <div class="pill"><i></i> LIVE FFT / WAVE</div><br/>
+        <span id="status">Click play to arm audio</span>
+      </div>
+    </header>
+
+    <section class="canvasCard">
+      <canvas id="viz"></canvas>
+      <div class="hud">
+        <div class="left">
+          <span>Mode:</span> <strong id="mode">Bars</strong>
+          <span>·</span>
+          <span>Intensity:</span> <strong id="intensity">Medium</strong>
+        </div>
+        <div class="right">
+          <span>Keys:</span>
+          <span class="kbd">M</span> mode
+          <span class="kbd">I</span> intensity
+        </div>
+      </div>
+    </section>
+
+    <footer class="bottom">
+      <!-- Replace src with your hosted URL or local relative path -->
+      <audio id="audio" controls preload="metadata" crossorigin="anonymous"
+             src="Sacred Certainty.mp3"></audio>
+      <div class="note">
+        <span>Tip: If opening locally, some browsers require a local server for audio + analysis.</span>
+        <span>Designed for EchoVerse drops — single-file, portable.</span>
+      </div>
+    </footer>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('viz');
+  const ctx = canvas.getContext('2d');
+  const audio = document.getElementById('audio');
+  const statusEl = document.getElementById('status');
+  const modeEl = document.getElementById('mode');
+  const intensityEl = document.getElementById('intensity');
+
+  let ac, src, analyser, data, timeData;
+  let armed = false;
+
+  const modes = ['Bars', 'Wave', 'Pulse'];
+  let modeIdx = 0;
+
+  const intensities = [
+    { name:'Low', fft:1024, smooth:.92, gain:0.7 },
+    { name:'Medium', fft:2048, smooth:.86, gain:1.0 },
+    { name:'High', fft:4096, smooth:.78, gain:1.35 },
+  ];
+  let intIdx = 1;
+
+  function resize() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function arm() {
+    if (armed) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    src = ac.createMediaElementSource(audio);
+    analyser = ac.createAnalyser();
+
+    const cfg = intensities[intIdx];
+    analyser.fftSize = cfg.fft;
+    analyser.smoothingTimeConstant = cfg.smooth;
+
+    data = new Uint8Array(analyser.frequencyBinCount);
+    timeData = new Uint8Array(analyser.fftSize);
+
+    src.connect(analyser);
+    analyser.connect(ac.destination);
+
+    armed = true;
+    statusEl.textContent = 'Armed — analyzing audio';
+  }
+
+  function setIntensity(idx) {
+    intIdx = (idx + intensities.length) % intensities.length;
+    intensityEl.textContent = intensities[intIdx].name;
+    if (analyser) {
+      const cfg = intensities[intIdx];
+      analyser.fftSize = cfg.fft;
+      analyser.smoothingTimeConstant = cfg.smooth;
+      data = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Uint8Array(analyser.fftSize);
+    }
+  }
+
+  function setMode(idx) {
+    modeIdx = (idx + modes.length) % modes.length;
+    modeEl.textContent = modes[modeIdx];
+  }
+
+  // Arm on first user gesture related to audio
+  audio.addEventListener('play', async () => {
+    arm();
+    if (ac && ac.state === 'suspended') await ac.resume();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'm') setMode(modeIdx + 1);
+    if (e.key.toLowerCase() === 'i') setIntensity(intIdx + 1);
+  });
+
+  function drawBackground(w, h, energy) {
+    // Moody gradient + faint fog bands
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, `rgba(10,12,16,1)`);
+    g.addColorStop(1, `rgba(6,8,12,1)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // Fog lines
+    const bands = 7;
+    for (let i=0;i<bands;i++){
+      const y = (h*(i+1))/(bands+1);
+      const a = 0.035 + energy*0.06;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fillRect(0, y + Math.sin((Date.now()/900)+(i*1.2))*8, w, 1);
+    }
+
+    // Vignette
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function computeEnergy() {
+    if (!analyser) return 0;
+    analyser.getByteFrequencyData(data);
+    let sum = 0;
+    const n = data.length;
+    // emphasize lows + low-mids for “swamp crawl”
+    const maxBin = Math.min(n, 220);
+    for (let i=0;i<maxBin;i++){
+      const v = data[i] / 255;
+      sum += v*v;
+    }
+    return Math.min(1, Math.sqrt(sum / maxBin));
+  }
+
+  function render() {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    const energy = armed ? computeEnergy() : 0;
+    drawBackground(w, h, energy);
+
+    if (!analyser) {
+      // idle text
+      ctx.fillStyle = 'rgba(231,238,247,.75)';
+      ctx.font = '600 14px ui-sans-serif, system-ui';
+      ctx.fillText('Press play to awaken the sermon.', 18, 30);
+      requestAnimationFrame(render);
+      return;
+    }
+
+    const cfg = intensities[intIdx];
+    const gain = cfg.gain;
+
+    if (modes[modeIdx] === 'Bars') {
+      analyser.getByteFrequencyData(data);<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EchoVerse Visualizer — Sacred Certainty</title>
+  <style>
+    :root{
+      --bg0:#07090c;
+      --bg1:#0b1016;
+      --fg:#e7eef7;
+      --muted:#9aa7b6;
+      --edge:rgba(255,255,255,.10);
+      --edge2:rgba(255,255,255,.06);
+      --glow:rgba(255,255,255,.12);
+      --warn:rgba(255,160,64,.85);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      color:var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 20% 10%, rgba(255,255,255,.06), transparent 55%),
+        radial-gradient(900px 500px at 85% 30%, rgba(255,160,64,.07), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow:hidden;
+    }
+    .wrap{
+      position:relative;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      height:100vh;
+      padding:18px;
+      gap:12px;
+    }
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      padding:14px 14px 10px;
+      border:1px solid var(--edge);
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+    }
+    .title h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+    }
+    .title p{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+      max-width:56ch;
+    }
+    .meta{
+      text-align:right;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.45;
+      white-space:nowrap;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border:1px solid var(--edge2);
+      border-radius:999px;
+      background:rgba(0,0,0,.18);
+      color:var(--fg);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .pill i{
+      width:8px;height:8px;border-radius:50%;
+      background:var(--warn);
+      box-shadow: 0 0 16px var(--warn);
+      display:inline-block;
+    }
+    .canvasCard{
+      position:relative;
+      border:1px solid var(--edge);
+      border-radius:18px;
+      background:rgba(255,255,255,.02);
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      overflow:hidden;
+    }
+    canvas{display:block; width:100%; height:100%;}
+    .hud{
+      position:absolute;
+      inset:auto 12px 12px 12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      pointer-events:none;
+      color:rgba(231,238,247,.85);
+      font-size:12px;
+    }
+    .hud .left, .hud .right{
+      display:flex; gap:10px; align-items:center;
+      padding:8px 10px;
+      border-radius:14px;
+      background:rgba(0,0,0,.28);
+      border:1px solid rgba(255,255,255,.07);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+      backdrop-filter: blur(8px);
+    }
+    .bottom{
+      border:1px solid var(--edge);
+      border-radius:16px;
+      padding:12px 12px 10px;
+      background:rgba(255,255,255,.03);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(8px);
+    }
+    audio{ width:100%; }
+    .note{
+      margin-top:8px;
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.25);
+      color:rgba(231,238,247,.9);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="title">
+        <h1>EchoVerse Visualizer</h1>
+        <p>
+          “Sacred Certainty” — industrial swamp sermon.<br/>
+          Belief becomes a throne; people become furniture.
+        </p>
+      </div>
+      <div class="meta">
+        <div class="pill"><i></i> LIVE FFT / WAVE</div><br/>
+        <span id="status">Click play to arm audio</span>
+      </div>
+    </header>
+
+    <section class="canvasCard">
+      <canvas id="viz"></canvas>
+      <div class="hud">
+        <div class="left">
+          <span>Mode:</span> <strong id="mode">Bars</strong>
+          <span>·</span>
+          <span>Intensity:</span> <strong id="intensity">Medium</strong>
+        </div>
+        <div class="right">
+          <span>Keys:</span>
+          <span class="kbd">M</span> mode
+          <span class="kbd">I</span> intensity
+        </div>
+      </div>
+    </section>
+
+    <footer class="bottom">
+      <!-- Replace src with your hosted URL or local relative path -->
+      <audio id="audio" controls preload="metadata" crossorigin="anonymous"
+             src="Sacred Certainty.mp3"></audio>
+      <div class="note">
+        <span>Tip: If opening locally, some browsers require a local server for audio + analysis.</span>
+        <span>Designed for EchoVerse drops — single-file, portable.</span>
+      </div>
+    </footer>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('viz');
+  const ctx = canvas.getContext('2d');
+  const audio = document.getElementById('audio');
+  const statusEl = document.getElementById('status');
+  const modeEl = document.getElementById('mode');
+  const intensityEl = document.getElementById('intensity');
+
+  let ac, src, analyser, data, timeData;
+  let armed = false;
+
+  const modes = ['Bars', 'Wave', 'Pulse'];
+  let modeIdx = 0;
+
+  const intensities = [
+    { name:'Low', fft:1024, smooth:.92, gain:0.7 },
+    { name:'Medium', fft:2048, smooth:.86, gain:1.0 },
+    { name:'High', fft:4096, smooth:.78, gain:1.35 },
+  ];
+  let intIdx = 1;
+
+  function resize() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function arm() {
+    if (armed) return;
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    src = ac.createMediaElementSource(audio);
+    analyser = ac.createAnalyser();
+
+    const cfg = intensities[intIdx];
+    analyser.fftSize = cfg.fft;
+    analyser.smoothingTimeConstant = cfg.smooth;
+
+    data = new Uint8Array(analyser.frequencyBinCount);
+    timeData = new Uint8Array(analyser.fftSize);
+
+    src.connect(analyser);
+    analyser.connect(ac.destination);
+
+    armed = true;
+    statusEl.textContent = 'Armed — analyzing audio';
+  }
+
+  function setIntensity(idx) {
+    intIdx = (idx + intensities.length) % intensities.length;
+    intensityEl.textContent = intensities[intIdx].name;
+    if (analyser) {
+      const cfg = intensities[intIdx];
+      analyser.fftSize = cfg.fft;
+      analyser.smoothingTimeConstant = cfg.smooth;
+      data = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Uint8Array(analyser.fftSize);
+    }
+  }
+
+  function setMode(idx) {
+    modeIdx = (idx + modes.length) % modes.length;
+    modeEl.textContent = modes[modeIdx];
+  }
+
+  // Arm on first user gesture related to audio
+  audio.addEventListener('play', async () => {
+    arm();
+    if (ac && ac.state === 'suspended') await ac.resume();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'm') setMode(modeIdx + 1);
+    if (e.key.toLowerCase() === 'i') setIntensity(intIdx + 1);
+  });
+
+  function drawBackground(w, h, energy) {
+    // Moody gradient + faint fog bands
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, `rgba(10,12,16,1)`);
+    g.addColorStop(1, `rgba(6,8,12,1)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // Fog lines
+    const bands = 7;
+    for (let i=0;i<bands;i++){
+      const y = (h*(i+1))/(bands+1);
+      const a = 0.035 + energy*0.06;
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      ctx.fillRect(0, y + Math.sin((Date.now()/900)+(i*1.2))*8, w, 1);
+    }
+
+    // Vignette
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function computeEnergy() {
+    if (!analyser) return 0;
+    analyser.getByteFrequencyData(data);
+    let sum = 0;
+    const n = data.length;
+    // emphasize lows + low-mids for “swamp crawl”
+    const maxBin = Math.min(n, 220);
+    for (let i=0;i<maxBin;i++){
+      const v = data[i] / 255;
+      sum += v*v;
+    }
+    return Math.min(1, Math.sqrt(sum / maxBin));
+  }
+
+  function render() {
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+
+    const energy = armed ? computeEnergy() : 0;
+    drawBackground(w, h, energy);
+
+    if (!analyser) {
+      // idle text
+      ctx.fillStyle = 'rgba(231,238,247,.75)';
+      ctx.font = '600 14px ui-sans-serif, system-ui';
+      ctx.fillText('Press play to awaken the sermon.', 18, 30);
+      requestAnimationFrame(render);
+      return;
+    }
+
+    const cfg = intensities[intIdx];
+    const gain = cfg.gain;
+
+    if (modes[modeIdx] === 'Bars') {
+      analyser.getByteFrequencyData(data);
