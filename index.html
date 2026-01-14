@@ -191,7 +191,15 @@
       border-bottom:1px solid var(--edge2);
       background:linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.22));
     }
-
+.player{
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.82));
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+    
     .controlsRow{
       display:flex;
       gap:10px;
@@ -466,13 +474,28 @@
     }
 
     /* Responsive */
-    @media (max-width: 980px){
-      body{ overflow:auto; }
-      .wrap{ height:auto; }
-      .main{
-        grid-template-columns: 1fr;
-        grid-template-rows:auto 520px;
-      }
+@media (max-width: 980px){
+  /* Mobile scrolling should be on the page */
+  body { overflow:auto; }
+  .wrap { height:auto; padding: 14px; }
+
+  /* Make the left panel scrollable if it gets tall */
+  .panel.left { overflow: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Cap the cover so controls are always visible */
+  .cover{
+    aspect-ratio: auto;
+    height: 220px;          /* try 200–260 depending on taste */
+    max-height: 35vh;       /* prevents giant cover on tall phones */
+  }
+
+  /* Give the player breathing room */
+  .player{ padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+
+  /* If controls wrap weirdly, keep them readable */
+  .controlsRow { align-items: stretch; }
+  .time { min-width: 72px; }
+}
       .left{ grid-template-rows:auto auto auto; }
       .cover{ aspect-ratio: 16/12; }
     }
